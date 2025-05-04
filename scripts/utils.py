@@ -101,7 +101,11 @@ def negative_edges(edge_index, num_nodes=None, num_neg_samples=None,
         idx = (edge_index[0] * num_nodes + edge_index[1]).to('cpu')
 
     perm = torch.tensor(rng)
-    mask = torch.from_numpy(np.isin(perm, idx)).to(torch.bool)
+    # mask = torch.from_numpy(np.isin(perm, idx)).to(torch.bool)
+    if hasattr(torch, 'isin'):
+        mask = torch.isin(perm, idx)
+    else:
+        mask = (perm.unsqueeze(1) == idx).any(dim=1)
     rest = mask.nonzero().view(-1)
     while rest.numel() > 0:  # pragma: no cover
         tmp = torch.tensor(random.sample(rng, rest.size(0)))
