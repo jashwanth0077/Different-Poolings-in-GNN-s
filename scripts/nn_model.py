@@ -65,12 +65,12 @@ class GIN_Pool_Net(torch.nn.Module):
         elif pooling=='dense-random':
             self.s_rnd = torch.randn(max_nodes, pooled_nodes)
             self.s_rnd.requires_grad = False
-        # elif pooling=='topk':
-        #     self.pool = TopKPooling(hidden_channels, ratio=pool_ratio)
-        elif pooling=='topK':
-            # replaces TopKPooling
-            self.selector = SelectTopK(in_channels=hidden_channels, ratio=pool_ratio)
-            self.filterer = FilterEdges()
+        elif pooling=='topk':
+            self.pool = TopKPooling(hidden_channels, ratio=pool_ratio)
+        # elif pooling=='topK':
+        #     # replaces TopKPooling
+        #     self.selector = SelectTopK(in_channels=hidden_channels, ratio=pool_ratio)
+        #     self.filterer = FilterEdges()
         
         elif pooling=='panpool':
             self.pool = PANPooling(hidden_channels, ratio=pool_ratio)
@@ -154,23 +154,23 @@ class GIN_Pool_Net(torch.nn.Module):
             elif self.pooling=='dense-random':
                 s = self.s_rnd[:x.size(1), :].unsqueeze(dim=0).expand(x.size(0), -1, -1).to(x.device)
                 x, adj, _, _ = dense_diff_pool(x, adj, s, mask)
-        # elif self.pooling in ['topk', 'sagpool', 'sparse-random']:
-        #     x, adj, _, batch, _, _ = self.pool(x, adj, edge_attr=None, batch=batch)
-
-        elif self.pooling=='topK':
-            # 1) select the top-k nodes
-            select_output = self.selector(x, batch)  # must return SelectOutput
-            perm = select_output.node_index          # tensor used for indexing
-
-            # Prune features & batch
-            x     = x[perm]
-            batch = batch[perm]
-
-            # Filter edges using the full SelectOutput object
-            adj, _ = self.filterer(adj, None, select_output)
-
-        elif self.pooling in ['sagpool', 'sparse-random']:
+        elif self.pooling in ['topk', 'sagpool', 'sparse-random']:
             x, adj, _, batch, _, _ = self.pool(x, adj, edge_attr=None, batch=batch)
+
+        # elif self.pooling=='topK':
+        #     # 1) select the top-k nodes
+        #     select_output = self.selector(x, batch)  # must return SelectOutput
+        #     perm = select_output.node_index          # tensor used for indexing
+
+        #     # Prune features & batch
+        #     x     = x[perm]
+        #     batch = batch[perm]
+
+        #     # Filter edges using the full SelectOutput object
+        #     adj, _ = self.filterer(adj, None, select_output)
+
+        # elif self.pooling in ['sagpool', 'sparse-random']:
+        #     x, adj, _, batch, _, _ = self.pool(x, adj, edge_attr=None, batch=batch)
         elif self.pooling=='asapool':
             x, adj, _, batch, _ = self.pool(x, adj, batch=batch)
         elif self.pooling=='panpool':
