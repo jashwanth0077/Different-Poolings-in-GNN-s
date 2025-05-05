@@ -85,7 +85,7 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
         self.conv_layers_post = torch.nn.ModuleList()
         for _ in range(num_layers_post):
             mlp = MLP([hidden_channels, hidden_channels, hidden_channels], act=activation, norm=None)
-            if self.is_dense1 and self.is_dense2:  # Both poolings are dense
+            if self.is_dense2:  # Use DenseGINConv if second pooling is dense
                 self.conv_layers_post.append(DenseGINConv(nn=mlp, train_eps=False))
             else:
                 self.conv_layers_post.append(GINConv(nn=mlp, train_eps=False))
