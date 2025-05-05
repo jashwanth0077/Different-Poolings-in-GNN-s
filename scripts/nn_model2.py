@@ -144,54 +144,61 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
     def _apply_pooling(self, pooling_type, pool_layer, x, adj, batch, mask=None):
         """Helper method to apply a pooling operation based on type"""
         aux_loss = 0
+        sparse_pooling_types = ['topk', 'sagpool', 'sparse-random', 'asapool', 'panpool', 'edgepool', 'kmis', 'graclus', 'comp-graclus']
+        
+        if pooling_type in sparse_pooling_types and adj.dim() == 3:
+            # Convert from dense to sparse
+            batch_size, num_nodes, _ = adj.size()
+            x_sparse = x.view(batch_size * num_nodes, -1)
+            batch_sparse = torch.repeat_interleave(torch.arange(batch_size, device=x.device), num_nodes)
+            edge_indices = []
+            for i in range(batch_size):
+                edge_index, _ = dense_to_sparse(adj[i])
+                edge_index += i * num_nodes
+                edge_indices.append(edge_index)
+            adj_sparse = torch.cat(edge_indices, dim=1)
+        else:
+            x_sparse = x
+            adj_sparse = adj
+            batch_sparse = batch
         
         if pooling_type in ['diffpool', 'mincut', 'dmon', 'dense-random']:
             if pooling_type == 'diffpool':
-                s = pool_layer(x)
-                x, adj, l1, l2 = dense_diff_pool(x, adj, s, mask)
+                s = pool_layer(x_sparse)
+                x, adj, l1, l2 = dense_diff_pool(x_sparse, adj_sparse, s, mask)
                 aux_loss = 0.1*l1 + 0.1*l2
             elif pooling_type == 'mincut':
-                s = pool_layer(x)
-                x, adj, l1, l2 = dense_mincut_pool(x, adj, s, mask)
+                s = pool_layer(x_sparse)
+                x, adj, l1, l2 = dense_mincut_pool(x_sparse, adj_sparse, s, mask)
                 aux_loss = 0.5*l1 + l2
             elif pooling_type == 'dmon':
-                _, x, adj, l1, l2, l3 = pool_layer(x, adj, mask)
+                _, x, adj, l1, l2, l3 = pool_layer(x_sparse, adj_sparse, mask)
                 aux_loss = 0.3*l1 + 0.3*l2 + 0.3*l3
             elif pooling_type == 'dense-random':
-                s = pool_layer[:x.size(1), :].unsqueeze(dim=0).expand(x.size(0), -1, -1).to(x.device)
-                x, adj, _, _ = dense_diff_pool(x, adj, s, mask)
-            return x, adj, batch, mask, aux_loss
-            
+                s = pool_layer[:x_sparse.size(1), :].unsqueeze(dim=0).expand(x_sparse.size(0), -1, -1).to(x_sparse.device)
+                x, adj, _, _ = dense_diff_pool(x_sparse, adj_sparse, s, mask)
+            return x, adj, batch_sparse, mask, aux_loss
         elif pooling_type in ['topk', 'sagpool', 'sparse-random']:
-            x, adj, _, batch, _, _ = pool_layer(x, adj, edge_attr=None, batch=batch)
+            x, adj, _, batch, _, _ = pool_layer(x_sparse, adj_sparse, edge_attr=None, batch=batch_sparse)
         elif pooling_type == 'asapool':
-            x, adj, _, batch, _ = pool_layer(x, adj, batch=batch)
+            x, adj, _, batch, _ = pool_layer(x_sparse, adj_sparse, batch=batch_sparse)
         elif pooling_type == 'panpool':
-            # Ensure adj is sparse (edge_index); if dense, convert it
-            if adj.dim() == 3:  # Dense adj: (batch_size, num_nodes, num_nodes)
-                adj = dense_to_sparse(adj)[0]  # Convert to edge_index
-            x, adj, _, batch, _, _ = pool_layer(x, adj, batch=batch)
+            x, adj, _, batch, _, _ = pool_layer(x_sparse, adj_sparse, batch=batch_sparse)
         elif pooling_type == 'edgepool':
-            x, adj, batch, _ = pool_layer(x, adj, batch=batch)
+            x, adj, batch, _ = pool_layer(x_sparse, adj_sparse, batch=batch_sparse)
         elif pooling_type == 'kmis':
-            # Ensure adj is edge_index; if dense, convert it
-            if adj.dim() == 3:  # Dense adj: (batch_size, num_nodes, num_nodes)
-                adj = dense_to_sparse(adj)[0]  # Convert to edge_index
-            x, adj, _, batch, _, _ = pool_layer(x, adj, None, batch=batch)
+            x, adj, _, batch, _, _ = pool_layer(x_sparse, adj_sparse, None, batch=batch_sparse)
         elif pooling_type in ['graclus', 'comp-graclus']:
-            temp_data = Data(x=x, edge_index=adj, batch=batch, edge_attr=None)
-            
+            temp_data = Data(x=x_sparse, edge_index=adj_sparse, batch=batch_sparse)
             if pooling_type == 'graclus':
-                cluster = graclus(adj, num_nodes=x.size(0))
+                cluster = graclus(adj_sparse, num_nodes=x_sparse.size(0))
             else:
-                complement = batched_negative_edges(edge_index=adj, batch=batch, force_undirected=True)
-                cluster = graclus(complement, num_nodes=x.size(0))
-            
+                complement = batched_negative_edges(edge_index=adj_sparse, batch=batch_sparse, force_undirected=True)
+                cluster = graclus(complement, num_nodes=x_sparse.size(0))
             pooled_data = sum_pool(cluster, temp_data)
             x = pooled_data.x
             adj = pooled_data.edge_index
             batch = pooled_data.batch
-            
         return x, adj, batch, None, aux_loss
 
     def forward(self, data):
