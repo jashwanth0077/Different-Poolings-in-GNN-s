@@ -10,7 +10,7 @@ from torch_geometric.nn.pool.connect import FilterEdges
 from torch_geometric.nn.pool import TopKPooling
 from torch_geometric.nn import dense_mincut_pool, dense_diff_pool, DMoNPooling
 from torch_geometric.nn.resolver import activation_resolver
-from torch_geometric.utils import to_dense_adj, to_dense_batch
+from torch_geometric.utils import to_dense_adj, to_dense_batch, dense_to_sparse
 from torch_geometric.data import Data
 
 from scripts.sum_pool import sum_pool
@@ -167,6 +167,9 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
         elif pooling_type == 'asapool':
             x, adj, _, batch, _ = pool_layer(x, adj, batch=batch)
         elif pooling_type == 'panpool':
+            # Ensure adj is sparse (edge_index); if dense, convert it
+            if adj.dim() == 3:  # Dense adj: (batch_size, num_nodes, num_nodes)
+                adj = dense_to_sparse(adj)[0]  # Convert to edge_index
             x, adj, _, batch, _, _ = pool_layer(x, adj, batch=batch)
         elif pooling_type == 'edgepool':
             x, adj, batch, _ = pool_layer(x, adj, batch=batch)
@@ -206,7 +209,7 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
                 x = self.act(layer(x, adj))
     
         ### first pooling block
-        if self.pooling1 is not None :
+        if self.pooling1 is not None:
             # Convert to dense representation if needed for first pooling
             if self.is_dense1:
                 x, mask = to_dense_batch(x, batch)
