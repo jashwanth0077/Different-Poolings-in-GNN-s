@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.nn import Linear
 from torch_geometric.nn import GINConv, MLP, DenseGINConv, PANConv
 from torch_geometric.nn import global_add_pool
-from torch_geometric.nn import PANPooling, SAGPooling, ASAPWELCOMooling, EdgePooling, graclus
+from torch_geometric.nn import PANPooling, SAGPooling, ASAPooling, EdgePooling, graclus
 from torch_geometric.nn.pool.select import SelectTopK
 from torch_geometric.nn.pool.connect import FilterEdges
 from torch_geometric.nn.pool import TopKPooling
