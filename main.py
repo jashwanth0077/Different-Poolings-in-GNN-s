@@ -42,11 +42,12 @@ rng = np.random.default_rng(1)
 # 2. Dataset setup
 # -------------------------------------------------------------------
 dataset = EXPWL1Dataset("data/EXPWL1/", transform=DataToFloat())
-
 avg_nodes = int(dataset.data.num_nodes / len(dataset))
 max_nodes = max(d.num_nodes for d in dataset)
-# special scaling for sparse-random
 max_nodes_sparse = max_nodes * args.batch_size
+
+# For cumulative plotting across poolings
+all_pool_epoch_tests = {}
 
 # -------------------------------------------------------------------
 # 3. Helpers
@@ -83,12 +84,12 @@ results = []
 for pool_method in args.poolings:
     name = str(pool_method) if pool_method is not None else "no-pool"
     print(f"\n=== Running pooling: {name} ===")
+    all_pool_epoch_tests[name] = []
 
     per_run_test_acc = []
     per_run_times     = []
 
     for run in range(args.runs):
-        # shuffle
         idx = rng.permutation(len(dataset))
         ds  = dataset[idx]
         train_ds = ds[len(ds)//5:]
@@ -99,10 +100,7 @@ for pool_method in args.poolings:
         val_loader   = DataLoader(val_ds,   args.batch_size)
         test_loader  = DataLoader(test_ds,  args.batch_size)
 
-        # pick right max_nodes
         mn = max_nodes_sparse if pool_method == "sparse-random" else max_nodes
-
-        # model & optimizer
         model = GIN_Pool_Net(
             in_channels   = train_ds.num_features,
             out_channels  = train_ds.num_classes,
@@ -119,7 +117,6 @@ for pool_method in args.poolings:
         best_val_loss = np.inf
         best_test_acc = 0.0
 
-        # per-epoch tracking
         epoch_times  = []
         epoch_tests  = []
 
@@ -135,64 +132,79 @@ for pool_method in args.poolings:
             epoch_times.append(t_ep)
             epoch_tests.append(te_acc)
 
-            # checkpoint on val loss
             if va_loss < best_val_loss:
                 best_val_loss = va_loss
                 best_test_acc = te_acc
 
-            # log to screen each epoch
+            # log every epoch with time and some epoch ticks
             log(
                 Pool=name, Run=run+1, Epoch=epoch,
-                Loss=f"{loss:.4f}",
-                Train=f"{tr_acc:.3f}",
-                Val=f"{va_acc:.3f}",
-                Test=f"{te_acc:.3f}",
-                Time=f"{t_ep:.2f}s"
+                Loss=f"{loss:.4f}", Train=f"{tr_acc:.3f}",
+                Val=f"{va_acc:.3f}", Test=f"{te_acc:.3f}", Time=f"{t_ep:.2f}s"
             )
 
         per_run_test_acc.append(best_test_acc)
         per_run_times.append(np.mean(epoch_times))
+        all_pool_epoch_tests[name].append(epoch_tests)
 
-        # save plots
+        # Individual plots with epoch annotations
+        # Accuracy vs Epoch
         plt.figure(figsize=(4,3))
-        plt.plot(range(1, args.epochs+1), epoch_tests)
+        plt.plot(range(1, args.epochs+1), epoch_tests, marker='o', markevery=(0, args.epochs//2, args.epochs-1))
+        for pt in (0, args.epochs//2, args.epochs-1):
+            plt.annotate(str(pt+1), xy=(pt+1, epoch_tests[pt]), xytext=(5,5), textcoords='offset points')
         plt.title(f"{name} — Run {run+1}")
         plt.xlabel("Epoch")
         plt.ylabel("Test Acc")
         plt.grid(True)
-        fname_acc = f"{name}_run{run+1}_epoch_acc.png"
-        plt.savefig(fname_acc, bbox_inches='tight')
+        plt.savefig(f"{name}_run{run+1}_epoch_acc.png", bbox_inches='tight')
         plt.close()
 
+        # Cumulative Time vs Accuracy with epoch markers
+        cum_time = np.cumsum(epoch_times)
         plt.figure(figsize=(4,3))
-        cumt = np.cumsum(epoch_times)
-        plt.plot(cumt, epoch_tests)
+        plt.plot(cum_time, epoch_tests, marker='s', markevery=(0, len(cum_time)//2, len(cum_time)-1))
+        for idx in (0, len(cum_time)//2, len(cum_time)-1):
+            plt.annotate(str(idx+1), xy=(cum_time[idx], epoch_tests[idx]), xytext=(5,-5), textcoords='offset points')
         plt.title(f"{name} — Run {run+1}")
         plt.xlabel("Cumulative Time (s)")
         plt.ylabel("Test Acc")
         plt.grid(True)
-        fname_time = f"{name}_run{run+1}_time_acc.png"
-        plt.savefig(fname_time, bbox_inches='tight')
+        plt.savefig(f"{name}_run{run+1}_time_acc.png", bbox_inches='tight')
         plt.close()
 
-    # aggregate across runs
+    # aggregate
     mean_acc = np.mean(per_run_test_acc)
     std_acc  = np.std(per_run_test_acc)
     mean_t   = np.mean(per_run_times)
-
     expressive = '✓' if mean_acc > 0.95 else '✗'
-
     results.append({
-        "Pooling":      name,
-        "s/epoch":      f"{mean_t:.2f}s",
-        "GIN layers":   f"{args.num_layers_pre}+{args.num_layers_post}",
-        "Pool Ratio":   "—" if pool_method is None else f"{args.pool_ratio:.1f}",
-        "Test Acc":     f"{mean_acc*100:.1f}±{std_acc*100:.1f}",
-        "Expressive":   expressive
+        "Pooling":    name,
+        "s/epoch":    f"{mean_t:.2f}s",
+        "GIN layers": f"{args.num_layers_pre}+{args.num_layers_post}",
+        "Pool Ratio": "—" if pool_method is None else f"{args.pool_ratio:.1f}",
+        "Test Acc":   f"{mean_acc*100:.1f}±{std_acc*100:.1f}",
+        "Expressive": expressive
     })
 
 # -------------------------------------------------------------------
-# 5. Print summary table
+# 5. Cumulative Plot: Avg Test Acc vs Epoch for All Poolings
+# -------------------------------------------------------------------
+plt.figure(figsize=(6,4))
+for name, runs in all_pool_epoch_tests.items():
+    avg_curve = np.mean(runs, axis=0)
+    plt.plot(range(1, args.epochs+1), avg_curve, label=name)
+plt.title("Average Test Accuracy per Epoch Across Poolings")
+plt.xlabel("Epoch")
+plt.ylabel("Test Accuracy")
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("cumulative_poolings_epoch_acc.png", bbox_inches='tight')
+plt.close()
+
+# -------------------------------------------------------------------
+# 6. Print summary table
 # -------------------------------------------------------------------
 print("\n" + "-"*70)
 print(f"{'Pooling':<12} | {'s/epoch':<8} | {'GIN layers':<10} | {'Ratio':<6} | {'Test Acc':<12} | {'Expr.'}")
@@ -203,10 +215,13 @@ for r in results:
 print("-"*70)
 
 # -------------------------------------------------------------------
-# 6. (Colab) Load & Display Saved Plots
+# 7. (Colab) Load & Display Saved Plots
 # -------------------------------------------------------------------
-# In a Colab cell, run:
+# In a Colab cell:
 # from IPython.display import Image, display
 # import glob
-# for img in sorted(glob.glob("*.png")):
+# # Individual:
+# for img in sorted(glob.glob("*_epoch_acc.png")) + sorted(glob.glob("*_time_acc.png")):
 #     display(Image(img))
+# # Cumulative:
+# display(Image('cumulative_poolings_epoch_acc.png'))
