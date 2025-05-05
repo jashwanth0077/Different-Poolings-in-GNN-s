@@ -3,9 +3,10 @@ from argparse import RawTextHelpFormatter
 import numpy as np
 import torch
 import torch.nn.functional as F
+import time
+import matplotlib.pyplot as plt
 
 from torch_geometric.loader import DataLoader
-
 from scripts.nn_model import GIN_Pool_Net
 from scripts.utils import EXPWL1Dataset, DataToFloat, log
 
@@ -75,6 +76,11 @@ if args.pooling == 'sparse-random':
 
 ### Training
 tot_acc = []
+all_train_acc = []
+all_val_acc = []
+all_test_acc = []
+all_epochs_time = []
+
 for r in range(args.runs):  
     
     # Random shuffle the data
@@ -103,20 +109,63 @@ for r in range(args.runs):
     opt = torch.optim.Adam(net_model.parameters(), lr=args.lr)    
     
     # Train
-    best_val=np.inf
-    best_test=0
+    best_val = np.inf
+    best_test = 0
+    epoch_train_acc = []
+    epoch_val_acc = []
+    epoch_test_acc = []
+    epoch_times = []
+    
     for epoch in range(1, args.epochs + 1):
+        start_time = time.time()
+        
         loss = train(net_model, train_loader, opt)
         train_acc, _ = test(net_model, train_loader)
         val_acc, val_loss = test(net_model, val_loader)
         test_acc, _ = test(net_model, test_loader)
+        
+        epoch_time = time.time() - start_time
+        epoch_train_acc.append(train_acc)
+        epoch_val_acc.append(val_acc)
+        epoch_test_acc.append(test_acc)
+        epoch_times.append(epoch_time)
+        
         if val_loss < best_val:
             best_val = val_loss
             best_test = test_acc
+        
         log(Epoch=epoch, Loss=loss, Train=train_acc, Val=val_acc, Test=test_acc)
         
     tot_acc.append(best_test)
+    all_train_acc.append(epoch_train_acc)
+    all_val_acc.append(epoch_val_acc)
+    all_test_acc.append(epoch_test_acc)
+    all_epochs_time.append(epoch_times)
+    
     print(f"### Run {r:d} - val loss: {best_val:.3f}, test acc: {best_test:.3f}")
     
+# Print final results
 print("Accuracies in each run: ", tot_acc)    
 print(f"test acc - mean: {np.mean(tot_acc):.3f}, std: {np.std(tot_acc):.3f}")
+
+# Plot accuracy vs. epoch
+for r in range(args.runs):
+    plt.plot(range(1, args.epochs + 1), all_val_acc[r], label=f"Run {r+1} - Validation")
+    plt.plot(range(1, args.epochs + 1), all_test_acc[r], label=f"Run {r+1} - Test")
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.title('Accuracy vs Epoch')
+plt.legend()
+plt.show()
+
+# Plot time vs. accuracy
+avg_time_per_epoch = np.mean([np.mean(times) for times in all_epochs_time])
+avg_accuracy = np.mean(tot_acc)
+
+plt.plot(range(1, args.runs + 1), [np.mean(times) for times in all_epochs_time], label='Time per epoch')
+plt.axhline(y=avg_accuracy, color='r', linestyle='--', label=f'Average Accuracy: {avg_accuracy:.3f}')
+plt.xlabel('Run')
+plt.ylabel('Time (seconds)')
+plt.title(f'Time per Run (Avg Time per Epoch: {avg_time_per_epoch:.3f} s)')
+plt.legend()
+plt.show()
