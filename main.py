@@ -154,15 +154,19 @@ for pool_method in args.poolings:
         per_run_test_acc.append(best_test_acc)
         per_run_times.append(np.mean(epoch_times))
 
-        # plot inline
+        # save plots instead of show
+        # Accuracy vs Epoch
         plt.figure(figsize=(4,3))
         plt.plot(range(1, args.epochs+1), epoch_tests)
         plt.title(f"{name} — Run {run+1}")
         plt.xlabel("Epoch")
         plt.ylabel("Test Acc")
         plt.grid(True)
-        plt.show()
+        fname_acc = f"{name}_run{run+1}_epoch_acc.png"
+        plt.savefig(fname_acc, bbox_inches='tight')
+        plt.close()
 
+        # Cumulative Time vs Accuracy
         plt.figure(figsize=(4,3))
         cumt = np.cumsum(epoch_times)
         plt.plot(cumt, epoch_tests)
@@ -170,14 +174,15 @@ for pool_method in args.poolings:
         plt.xlabel("Cumulative Time (s)")
         plt.ylabel("Test Acc")
         plt.grid(True)
-        plt.show()
+        fname_time = f"{name}_run{run+1}_time_acc.png"
+        plt.savefig(fname_time, bbox_inches='tight')
+        plt.close()
 
     # aggregate across runs
     mean_acc = np.mean(per_run_test_acc)
     std_acc  = np.std(per_run_test_acc)
     mean_t   = np.mean(per_run_times)
 
-    # expressivity flag placeholder (you can define your own test)
     expressive = '✓' if mean_acc > 0.95 else '✗'
 
     results.append({
@@ -193,9 +198,18 @@ for pool_method in args.poolings:
 # 5. Print summary table
 # -------------------------------------------------------------------
 print("\n" + "-"*70)
-print(f"{'Pooling':<12} | {'s/epoch':<8} | {'GIN layers':<10} | {'Ratio':<6} | {'Test Acc':<12} | {'Expr.'}")
+print(f{"{'Pooling':<12} | {'s/epoch':<8} | {'GIN layers':<10} | {'Ratio':<6} | {'Test Acc':<12} | {'Expr.'}"})
 print("-"*70)
 for r in results:
     print(f"{r['Pooling']:<12} | {r['s/epoch']:<8} | {r['GIN layers']:<10} | "
           f"{r['Pool Ratio']:<6} | {r['Test Acc']:<12} | {r['Expressive']}")
 print("-"*70)
+
+# -------------------------------------------------------------------
+# 6. (Colab) Load & Display Saved Plots
+# -------------------------------------------------------------------
+# In a Colab cell, run:
+# from IPython.display import Image, display
+# import glob
+# for img in sorted(glob.glob("*.png")):
+#     display(Image(img))
