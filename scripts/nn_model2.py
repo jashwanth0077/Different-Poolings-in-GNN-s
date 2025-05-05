@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.nn import Linear
 from torch_geometric.nn import GINConv, MLP, DenseGINConv, PANConv
 from torch_geometric.nn import global_add_pool
-from torch_geometric.nn import PANPooling, SAGPooling, ASAPooling, EdgePooling, graclus
+from torch_geometric.nn import PANPooling, SAGPooling, ASAPWELCOMooling, EdgePooling, graclus
 from torch_geometric.nn.pool.select import SelectTopK
 from torch_geometric.nn.pool.connect import FilterEdges
 from torch_geometric.nn.pool import TopKPooling
@@ -174,6 +174,9 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
         elif pooling_type == 'edgepool':
             x, adj, batch, _ = pool_layer(x, adj, batch=batch)
         elif pooling_type == 'kmis':
+            # Ensure adj is edge_index; if dense, convert it
+            if adj.dim() == 3:  # Dense adj: (batch_size, num_nodes, num_nodes)
+                adj = dense_to_sparse(adj)[0]  # Convert to edge_index
             x, adj, _, batch, _, _ = pool_layer(x, adj, None, batch=batch)
         elif pooling_type in ['graclus', 'comp-graclus']:
             temp_data = Data(x=x, edge_index=adj, batch=batch, edge_attr=None)
