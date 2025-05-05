@@ -8,10 +8,10 @@ from torch_geometric.nn import PANPooling, SAGPooling, ASAPooling, EdgePooling, 
 from torch_geometric.nn.pool.select import SelectTopK
 from torch_geometric.nn.pool.connect import FilterEdges
 from torch_geometric.nn.pool import TopKPooling
-
 from torch_geometric.nn import dense_mincut_pool, dense_diff_pool, DMoNPooling
 from torch_geometric.nn.resolver import activation_resolver
 from torch_geometric.utils import to_dense_adj, to_dense_batch
+from torch_geometric.data import Data
 
 from scripts.sum_pool import sum_pool
 from scripts.pooling.kmis.kmis_pool import KMISPooling
@@ -123,7 +123,9 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
             return KMISPooling(hidden_channels, k=5, aggr_x='sum')
         elif pooling_type == 'sparse-random':
             return RndSparse(in_channels=hidden_channels, ratio=pool_ratio, max_nodes=max_nodes)
-        elif pooling_type in ['graclus', 'comp-graclus']:
+        elif pooling_type == 'graclus':
+            pass
+        elif pooling_type == 'comp-graclus':
             pass
         else:
             raise KeyError(f"Unrecognized pooling method: {pooling_type}")
@@ -171,10 +173,7 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
         elif pooling_type == 'kmis':
             x, adj, _, batch, _, _ = pool_layer(x, adj, None, batch=batch)
         elif pooling_type in ['graclus', 'comp-graclus']:
-            data = type('', (), {})()  # Create a temporary object to hold data
-            data.x = x
-            data.edge_index = adj
-            data.batch = batch
+            temp_data = Data(x=x, edge_index=adj, batch=batch, edge_attr=None)
             
             if pooling_type == 'graclus':
                 cluster = graclus(adj, num_nodes=x.size(0))
@@ -182,10 +181,10 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
                 complement = batched_negative_edges(edge_index=adj, batch=batch, force_undirected=True)
                 cluster = graclus(complement, num_nodes=x.size(0))
             
-            data = sum_pool(cluster, data)
-            x = data.x
-            adj = data.edge_index
-            batch = data.batch
+            pooled_data = sum_pool(cluster, temp_data)
+            x = pooled_data.x
+            adj = pooled_data.edge_index
+            batch = pooled_data.batch
             
         return x, adj, batch, None, aux_loss
 
