@@ -123,6 +123,8 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
             return KMISPooling(hidden_channels, k=5, aggr_x='sum')
         elif pooling_type == 'sparse-random':
             return RndSparse(in_channels=hidden_channels, ratio=pool_ratio, max_nodes=max_nodes)
+        elif pooling_type in ['graclus', 'comp-graclus']:
+            pass
         else:
             raise KeyError(f"Unrecognized pooling method: {pooling_type}")
 
