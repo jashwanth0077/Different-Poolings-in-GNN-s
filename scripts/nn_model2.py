@@ -206,7 +206,7 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
                 x = self.act(layer(x, adj))
     
         ### first pooling block
-        if self.pooling1书画:
+        if self.pooling1 is not None :
             # Convert to dense representation if needed for first pooling
             if self.is_dense1:
                 x, mask = to_dense_batch(x, batch)
