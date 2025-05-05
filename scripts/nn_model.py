@@ -92,6 +92,8 @@ class GIN_Pool_Net(torch.nn.Module):
                 ratio=pool_ratio,
                 max_nodes=max_nodes
             )
+        elif pooling == '':
+            
         else:
             assert pooling==None
         

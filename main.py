@@ -150,7 +150,8 @@ for pool_method in args.poolings:
         # Individual plots with epoch annotations
         # Accuracy vs Epoch
         plt.figure(figsize=(4,3))
-        plt.plot(range(1, args.epochs+1), epoch_tests, marker='o', markevery=(0, args.epochs//2, args.epochs-1))
+        # plt.plot(range(1, args.epochs+1), epoch_tests, marker='o', markevery=[0, mid_epoch, args.epochs-1])
+        plt.plot(range(1, args.epochs+1), epoch_tests, marker='o', markevery=[0, args.epochs//2, args.epochs-1])
         for pt in (0, args.epochs//2, args.epochs-1):
             plt.annotate(str(pt+1), xy=(pt+1, epoch_tests[pt]), xytext=(5,5), textcoords='offset points')
         plt.title(f"{name} — Run {run+1}")
@@ -163,7 +164,7 @@ for pool_method in args.poolings:
         # Cumulative Time vs Accuracy with epoch markers
         cum_time = np.cumsum(epoch_times)
         plt.figure(figsize=(4,3))
-        plt.plot(cum_time, epoch_tests, marker='s', markevery=(0, len(cum_time)//2, len(cum_time)-1))
+        plt.plot(cum_time, epoch_tests, marker='s', markevery=[0, len(cum_time)//2, len(cum_time)-1])
         for idx in (0, len(cum_time)//2, len(cum_time)-1):
             plt.annotate(str(idx+1), xy=(cum_time[idx], epoch_tests[idx]), xytext=(5,-5), textcoords='offset points')
         plt.title(f"{name} — Run {run+1}")
