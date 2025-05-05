@@ -166,11 +166,18 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
             x, adj, _, batch, _, _ = pool_layer(x, adj, edge_attr=None, batch=batch)
         elif pooling_type == 'asapool':
             x, adj, _, batch, _ = pool_layer(x, adj, batch=batch)
+        # elif pooling_type == 'panpool':
+        #     # Ensure adj is sparse (edge_index); if dense, convert it
+        #     if adj.dim() == 3:  # Dense adj: (batch_size, num_nodes, num_nodes)
+        #         adj = dense_to_sparse(adj)[0]  # Convert to edge_index
+        #     x, adj, _, batch, _, _ = pool_layer(x, adj, batch=batch)
         elif pooling_type == 'panpool':
-            # Ensure adj is sparse (edge_index); if dense, convert it
-            if adj.dim() == 3:  # Dense adj: (batch_size, num_nodes, num_nodes)
-                adj = dense_to_sparse(adj)[0]  # Convert to edge_index
-            x, adj, _, batch, _, _ = pool_layer(x, adj, batch=batch)
+            if adj.dim() == 2:  # adj is edge_index
+                num_nodes = x.size(0)
+                adj = torch.sparse_coo_tensor(adj, torch.ones(adj.size(1), device=adj.device), (num_nodes, num_nodes))
+            elif adj.dim() == 3:  # adj is dense
+                adj = adj.to_sparse()
+                x, adj, _, batch, _, _ = pool_layer(x, adj, batch=batch)
         elif pooling_type == 'edgepool':
             x, adj, batch, _ = pool_layer(x, adj, batch=batch)
         elif pooling_type == 'kmis':
