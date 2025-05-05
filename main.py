@@ -17,14 +17,9 @@ from scripts.utils    import EXPWL1Dataset, DataToFloat, log
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter
 )
-parser.add_argument('--poolings', nargs='+',
-    default=[
-        None, 'diffpool', 'dmon', 'mincut', 'ecpool',
-        'graclus', 'kmis', 'topk', 'panpool',
-        'asapool', 'sagpool', 'dense-random',
-        'sparse-random', 'comp-graclus'
-    ],
-    help="List of pooling methods to sweep over. Use None for no-pool."
+parser.add_argument('--poolings', type=str,
+    default="none,diffpool,dmon,mincut,ecpool,graclus,kmis,topk,panpool,asapool,sagpool,dense-random,sparse-random,comp-graclus",
+    help="Comma-separated list of pooling methods (e.g., none,graclus,topk). 'none' maps to no-pool."
 )
 parser.add_argument('--pool_ratio',    type=float, default=0.1)
 parser.add_argument('--batch_size',    type=int,   default=32)
@@ -35,6 +30,10 @@ parser.add_argument('--lr',               type=float, default=1e-4)
 parser.add_argument('--epochs',           type=int,   default=500)
 parser.add_argument('--runs',             type=int,   default=1)
 args = parser.parse_args()
+
+# split comma-separated string into list, map 'none' to None
+raw = [p.strip() for p in args.poolings.split(',') if p.strip()]
+args.poolings = [None if p.lower() in ('none','no-pool','nopool','') else p for p in raw]
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 rng = np.random.default_rng(1)
@@ -101,7 +100,7 @@ for pool_method in args.poolings:
         test_loader  = DataLoader(test_ds,  args.batch_size)
 
         # pick right max_nodes
-        mn = max_nodes_sparse if pool_method=="sparse-random" else max_nodes
+        mn = max_nodes_sparse if pool_method == "sparse-random" else max_nodes
 
         # model & optimizer
         model = GIN_Pool_Net(
@@ -154,8 +153,7 @@ for pool_method in args.poolings:
         per_run_test_acc.append(best_test_acc)
         per_run_times.append(np.mean(epoch_times))
 
-        # save plots instead of show
-        # Accuracy vs Epoch
+        # save plots
         plt.figure(figsize=(4,3))
         plt.plot(range(1, args.epochs+1), epoch_tests)
         plt.title(f"{name} — Run {run+1}")
@@ -166,7 +164,6 @@ for pool_method in args.poolings:
         plt.savefig(fname_acc, bbox_inches='tight')
         plt.close()
 
-        # Cumulative Time vs Accuracy
         plt.figure(figsize=(4,3))
         cumt = np.cumsum(epoch_times)
         plt.plot(cumt, epoch_tests)
@@ -198,7 +195,7 @@ for pool_method in args.poolings:
 # 5. Print summary table
 # -------------------------------------------------------------------
 print("\n" + "-"*70)
-print(f{"{'Pooling':<12} | {'s/epoch':<8} | {'GIN layers':<10} | {'Ratio':<6} | {'Test Acc':<12} | {'Expr.'}"})
+print(f"{'Pooling':<12} | {'s/epoch':<8} | {'GIN layers':<10} | {'Ratio':<6} | {'Test Acc':<12} | {'Expr.'}")
 print("-"*70)
 for r in results:
     print(f"{r['Pooling']:<12} | {r['s/epoch']:<8} | {r['GIN layers']:<10} | "
