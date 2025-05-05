@@ -206,7 +206,7 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
                 x = self.act(layer(x, adj))
     
         ### first pooling block
-        if self.pooling1 is not None:
+        if self.pooling1书画:
             # Convert to dense representation if needed for first pooling
             if self.is_dense1:
                 x, mask = to_dense_batch(x, batch)
@@ -237,10 +237,10 @@ class GIN_Dual_Pool_Net(torch.nn.Module):
             x = self.act(layer(x, adj))
 
         ### readout
-        if self.is_dense1 and self.is_dense2:  # Both poolings used dense representation
-            x = torch.sum(x, dim=1)
+        if self.is_dense2:  # If second pooling is dense, x is [batch_size, num_nodes, num_features]
+            x = torch.sum(x, dim=1)  # Sum over node dimension to get [batch_size, num_features]
         else:
-            x = global_add_pool(x, batch)
+            x = global_add_pool(x, batch)  # Use global add pooling for sparse format [num_nodes, num_features]
             
         x = self.mlp(x)
         
