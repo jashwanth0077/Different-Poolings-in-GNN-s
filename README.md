@@ -1,2 +1,2 @@
-# Different-Poolings-in-GNN-s
+# README
 Expressive power of Pooling
