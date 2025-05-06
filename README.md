@@ -1,4 +1,4 @@
-# Instructions to run the code
+in# Instructions to run the code
 * Clone this repository:
 ```
 !rm -rf Different-Poolings-in-GNN-s
@@ -49,7 +49,7 @@ Here, arguments are comma-separated list of pooling methods from `{none, diffpoo
 # Modules Implementations
 main.py contains code for training single pool layer
 
-main1.py contains code for training double pool layers
+main2.py contains code for training double pool layers
 
 nn_model.py contains code for model of single pool layer
 
