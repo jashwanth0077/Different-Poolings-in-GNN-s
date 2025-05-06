@@ -23,17 +23,17 @@ from scripts.utils import batched_negative_edges
 
 class GIN_Pool_Net(torch.nn.Module):
     def __init__(self, 
-                 in_channels,           # Size of node features
-                 out_channels,          # Number of classes
-                 num_layers_pre=1,      # Number of GIN layers before pooling
-                 num_layers_post=1,     # Number of GIN layers after pooling
+                 in_channels,          
+                 out_channels,         
+                 num_layers_pre=1,     
+                 num_layers_post=1,     
                  hidden_channels=64,    # Dimensionality of node embeddings
                  norm=True,             # Normalise Layers in the GIN MLP
                  activation='ELU',      # Activation of the MLP in GIN 
-                 average_nodes=None,    # Needed for dense pooling methods
-                 max_nodes=None,        # Needed for random pool
-                 pooling=None,          # Pooling method
-                 pool_ratio=0.1,        # Ratio = nodes_after_pool/nodes_before_pool
+                 average_nodes=None,  
+                 max_nodes=None,        
+                 pooling=None,          
+                 pool_ratio=0.1,        
                  ):
         super(GIN_Pool_Net, self).__init__()
         
