@@ -48,8 +48,13 @@ Here, arguments are comma-separated list of pooling methods from `{none, diffpoo
 ```
 # Modules Implementations
 main.py contains code for training single pool layer
+
 main1.py contains code for training double pool layers
+
 nn_model.py contains code for model of single pool layer
+
 nn_model2.py contains code for model of double pool layer
+
 kmis_pool.py contains code for kmis pooling layer
+
 sum_pool.py contains aggregate function in MP layer
