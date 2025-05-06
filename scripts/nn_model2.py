@@ -21,20 +21,20 @@ from scripts.utils import batched_negative_edges
 
 class GIN_Dual_Pool_Net(torch.nn.Module):
     def __init__(self, 
-                 in_channels,           # Size of node features
-                 out_channels,          # Number of classes
-                 num_layers_pre=1,      # Number of GIN layers before first pooling
-                 num_layers_mid=1,      # Number of GIN layers between poolings
-                 num_layers_post=1,     # Number of GIN layers after second pooling
+                 in_channels,          
+                 out_channels,         
+                 num_layers_pre=1,     
+                 num_layers_mid=1,     
+                 num_layers_post=1,    
                  hidden_channels=64,    # Dimensionality of node embeddings
                  norm=True,             # Normalise Layers in the GIN MLP
                  activation='ELU',      # Activation of the MLP in GIN 
-                 average_nodes=None,    # Needed for dense pooling methods
-                 max_nodes=None,        # Needed for random pool
-                 pooling1=None,         # First pooling method
-                 pooling2=None,         # Second pooling method
-                 pool_ratio1=0.5,       # Ratio for first pooling
-                 pool_ratio2=0.2,       # Ratio for second pooling
+                 average_nodes=None,    
+                 max_nodes=None,       
+                 pooling1=None,         
+                 pooling2=None,         
+                 pool_ratio1=0.5,      
+                 pool_ratio2=0.2,       
                  ):
         super(GIN_Dual_Pool_Net, self).__init__()
         
